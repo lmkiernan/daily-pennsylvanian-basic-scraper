@@ -13,23 +13,20 @@ import requests
 import loguru
 
 
-def scrape_data_point():
-    """
-    Scrapes the main headline from The Daily Pennsylvanian home page.
-
-    Returns:
-        str: The headline text if found, otherwise an empty string.
-    """
-    req = requests.get("https://www.thedp.com")
-    loguru.logger.info(f"Request URL: {req.url}")
-    loguru.logger.info(f"Request status code: {req.status_code}")
-
-    if req.ok:
-        soup = bs4.BeautifulSoup(req.text, "html.parser")
-        target_element = soup.find("a", class_="frontpage-link")
-        data_point = "" if target_element is None else target_element.text
-        loguru.logger.info(f"Data point: {data_point}")
-        return data_point
+def scrape_first_sports_headline():
+    url = "https://www.thedp.com/section/sports"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+    }
+    response = requests.get(url, headers=headers)
+    if response.ok:
+        soup = bs4.BeautifulSoup(response.text, "html.parser")
+        first_article = soup.find("div", class_="row section-article")
+        if first_article:
+            headline_tag = first_article.find("h3", class_="standard-link")
+            if headline_tag and headline_tag.a:
+                return headline_tag.a.text.strip()
+    return ""
 
 
 if __name__ == "__main__":
@@ -54,14 +51,15 @@ if __name__ == "__main__":
     # Run scrape
     loguru.logger.info("Starting scrape")
     try:
-        data_point = scrape_data_point()
+        headline = scrape_first_sports_headline()
+        print("First Sports Headline:", headline)
     except Exception as e:
         loguru.logger.error(f"Failed to scrape data point: {e}")
-        data_point = None
+        headline = None
 
     # Save data
-    if data_point is not None:
-        dem.add_today(data_point)
+    if headline is not None:
+        dem.add_today(headline)
         dem.save()
         loguru.logger.info("Saved daily event monitor")
 
@@ -78,9 +76,11 @@ if __name__ == "__main__":
 
     print_tree(os.getcwd())
 
-    loguru.logger.info("Printing contents of data file {}".format(dem.file_path))
-    with open(dem.file_path, "r") as f:
-        loguru.logger.info(f.read())
+    if os.path.exists(dem.file_path):
+        with open(dem.file_path, "r") as f:
+            loguru.logger.info(f.read())
+    else:
+        loguru.logger.info(f"File {dem.file_path} does not exist yet.")
 
     # Finish
     loguru.logger.info("Scrape complete")
